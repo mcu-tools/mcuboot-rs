@@ -1,0 +1,9 @@
+[target.'cfg(all(target_arch = "arm", target_os = "none"))']
+rustflags = [
+  "-C", "link-arg=-Tlink.x",
+]
+# runner = "probe-rs run --chip LPC55S69JBD64"
+runner = "arm-none-eabi-gdb -q -x jlink.gdb"
+
+[build]
+target = "thumbv8m.main-none-eabi"
