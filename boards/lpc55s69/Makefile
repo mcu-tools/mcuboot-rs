@@ -7,3 +7,6 @@ all:
 jlink:
 	env -u DISPLAY \
 	    JLinkGDBServer -strict -device LPC55S69 -if SWD -vd
+
+semi:
+	socat - TCP4:localhost:2333
