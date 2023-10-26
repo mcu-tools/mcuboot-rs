@@ -1,0 +1,15 @@
+[package]
+name = "boot"
+version = "0.1.0"
+edition = "2021"
+documentation = "rust-embedded bootlaoder"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+embedded-storage = "0.3.0"
+asraw = { version = "0.1.0", path = "../asraw", default-features = false }
+
+[features]
+default = ["std"]
+std = ["asraw/std"]
