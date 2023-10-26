@@ -9,9 +9,13 @@ build = "build.rs"
 [dependencies]
 cortex-m = "0.7"
 embedded-hal = { version = "0.2", features = ["unproven"] }
+# lpc55-hal = { version = "0.3", path = "../../lpc55-hal" }
 lpc55-hal = "0.3"
 cortex-m-rt = "0.6"
 panic-halt = "0.2"
 embedded-time = "0.12.1"
 cortex-m-semihosting = { version = "0.5.0", features = ["jlink-quirks"] }
 panic-semihosting = { version = "0.5.0", features = ["jlink-quirks"] }
+embedded-storage = "0.3.0"
+
+asraw = { version = "0.1", path = "../../asraw", default-features = false }

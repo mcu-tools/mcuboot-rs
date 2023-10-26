@@ -3,6 +3,10 @@
 version = 3
 
 [[package]]
+name = "asraw"
+version = "0.1.0"
+
+[[package]]
 name = "autocfg"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -112,6 +116,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "embedded-storage"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "156d7a2fdd98ebbf9ae579cbceca3058cff946e13f8e17b90e3511db0508c723"
+
+[[package]]
 name = "embedded-time"
 version = "0.12.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -166,10 +176,12 @@ dependencies = [
 name = "mcuboot-lpc55s69"
 version = "0.1.0"
 dependencies = [
+ "asraw",
  "cortex-m",
  "cortex-m-rt",
  "cortex-m-semihosting 0.5.0",
  "embedded-hal",
+ "embedded-storage",
  "embedded-time",
  "lpc55-hal",
  "panic-halt",
