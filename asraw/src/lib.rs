@@ -2,6 +2,8 @@
 //! way to have this as a mutable view.  Generally, this is safe and meaningful
 //! for structures that are repr(C).  `as_mut_raw` is only safe in this case.
 
+#![cfg_attr(not(any(feature = "std", test)), no_std)]
+
 use core::{mem, slice};
 
 pub trait AsRaw : Sized {
