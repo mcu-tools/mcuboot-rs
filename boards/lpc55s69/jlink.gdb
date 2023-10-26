@@ -15,4 +15,13 @@ monitor semihosting enable
 # monitor semihosting breakOnError
 # monitor semihosting IOClient 3
 
-# continue
+# Load the target image with the signed version of the image:
+restore ../../hello/lpc55s69/signed.bin binary 0x20000
+
+# To debug the target application, replace the symbols with these
+# file ../../hello/lpc55s69/target/thumbv8m.main-none-eabi/debug/hello-lpc55s69
+
+# b main
+# b lpc55_hal::drivers::clocks::ClockRequirements::configure
+
+continue
