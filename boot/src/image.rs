@@ -1,8 +1,8 @@
 //! Boot image support
 
-use core::{mem::size_of, cell::RefCell};
+use core::{cell::RefCell, mem::size_of};
 
-use asraw::{AsRaw, AsMutRaw};
+use asraw::{AsMutRaw, AsRaw};
 use embedded_storage::nor_flash::{NorFlashError, NorFlashErrorKind, ReadNorFlash};
 
 // TODO: Move the error into a more general place.
@@ -47,7 +47,7 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
     /// indicate that the image itself is valid, merely that the header
     /// indicates an image is present.
     pub fn from_flash(flash: &'f RefCell<F>) -> Result<Image<'f, F>> {
-        let mut header =ImageHeader::default();
+        let mut header = ImageHeader::default();
         flash.borrow_mut().read(0, header.as_mut_raw())?;
 
         if header.magic != IMAGE_MAGIC {
@@ -65,7 +65,9 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
         // Simple case of just a single TLV entry for hash.  TODO: More
         // sophisticated handling should be done separate from here.
         let mut info = TlvInfo::default();
-        flash.borrow_mut().read(to_u32(tlv_base)?, info.as_mut_raw())?;
+        flash
+            .borrow_mut()
+            .read(to_u32(tlv_base)?, info.as_mut_raw())?;
 
         println!("header: {:#x?}", header);
         println!("tlv: {:#x?}", info);
@@ -77,7 +79,9 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
         let mut pos = size_of::<TlvEntry>();
         while pos < info.len as usize {
             let mut entry = TlvEntry::default();
-            flash.borrow_mut().read(to_u32(tlv_base + pos)?, entry.as_mut_raw())?;
+            flash
+                .borrow_mut()
+                .read(to_u32(tlv_base + pos)?, entry.as_mut_raw())?;
             println!("entry: {:x?}", entry);
 
             pos += size_of::<TlvEntry>() + entry.len as usize;
@@ -94,7 +98,9 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
     pub fn tlvs<'a>(&'a self) -> Result<TlvIter<'a, 'f, F>> {
         // Check the header.
         let mut info = TlvInfo::default();
-        self.flash.borrow_mut().read(to_u32(self.tlv_base)?, info.as_mut_raw())?;
+        self.flash
+            .borrow_mut()
+            .read(to_u32(self.tlv_base)?, info.as_mut_raw())?;
 
         if info.magic != TLV_INFO_MAGIC {
             return Err(Error::InvalidImage);
@@ -172,11 +178,23 @@ impl<'a, 'f, F: ReadNorFlash> Iterator for TlvIter<'a, 'f, F> {
         }
 
         let mut entry = TlvEntry::default();
-        let pos = iter_try!(self.image.tlv_base.checked_add(self.pos).ok_or(Error::InvalidImage));
+        let pos = iter_try!(self
+            .image
+            .tlv_base
+            .checked_add(self.pos)
+            .ok_or(Error::InvalidImage));
         let pos32 = iter_try!(to_u32(pos));
-        iter_try!(self.image.flash.borrow_mut().read(pos32, entry.as_mut_raw()));
-        let data_pos = iter_try!(pos.checked_add(size_of::<TlvEntry>()).ok_or(Error::InvalidImage));
-        self.pos = iter_try!(data_pos.checked_add(entry.len as usize).ok_or(Error::InvalidImage));
+        iter_try!(self
+            .image
+            .flash
+            .borrow_mut()
+            .read(pos32, entry.as_mut_raw()));
+        let data_pos = iter_try!(pos
+            .checked_add(size_of::<TlvEntry>())
+            .ok_or(Error::InvalidImage));
+        self.pos = iter_try!(data_pos
+            .checked_add(entry.len as usize)
+            .ok_or(Error::InvalidImage));
         Some(Ok(TlvIterEntry {
             flash: self.image.flash,
             kind: entry.kind,
@@ -214,7 +232,7 @@ mod tester {
     use core::cell::RefCell;
 
     // use embedded_storage::{ReadStorage, nor_flash::ReadNorFlash};
-    use embedded_storage::nor_flash::{ErrorType, NorFlashError, ReadNorFlash, NorFlashErrorKind};
+    use embedded_storage::nor_flash::{ErrorType, NorFlashError, NorFlashErrorKind, ReadNorFlash};
 
     use super::Image;
 
@@ -237,12 +255,14 @@ mod tester {
 
     impl<'a> ReadNorFlash for Simple<'a> {
         const READ_SIZE: usize = 1;
-        fn capacity(&self) -> usize { todo!() }
+        fn capacity(&self) -> usize {
+            todo!()
+        }
         fn read(&mut self, offset: u32, buf: &mut [u8]) -> Result<(), Error> {
             let offset = offset as usize;
 
             // Let bound checking catch the errors in the test.
-            buf.copy_from_slice(&self.0[offset .. offset + buf.len()]);
+            buf.copy_from_slice(&self.0[offset..offset + buf.len()]);
             Ok(())
         }
     }
