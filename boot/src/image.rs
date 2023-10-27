@@ -4,6 +4,7 @@ use core::{cell::RefCell, mem::size_of};
 
 use asraw::{AsMutRaw, AsRaw};
 use embedded_storage::nor_flash::{NorFlashError, NorFlashErrorKind, ReadNorFlash};
+use sha2::{Digest, Sha256};
 
 // TODO: Move the error into a more general place.
 type Result<T> = core::result::Result<T, Error>;
@@ -31,6 +32,9 @@ fn to_u32(v: usize) -> Result<u32> {
 /// The image header contains the following magic value, indicating the
 /// interpretation of the rest of the image header.
 pub const IMAGE_MAGIC: u32 = 0x96f3b83d;
+
+/// The result of a SHA256 hash, appropriate for stack allocation.
+type Hash256 = [u8; 32];
 
 /// An image is a bootable image residing in a flash partition.  There is a
 /// header at the beginning, and metadata immediately following the image.
@@ -130,7 +134,13 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
                         return Err(Error::InvalidImage);
                     }
                     seen_sha = true;
-                    println!("Would verify sha");
+                    let mut hash = [0u8; 32];
+                    elt.read_data(&mut hash)?;
+                    let image_hash = self.calculate_sha256()?;
+                    if hash != image_hash {
+                        println!("Hash verification failure");
+                        return Err(Error::InvalidImage);
+                    }
                 }
                 kind => {
                     println!("Unexpected TLV 0x{:x}", kind);
@@ -143,6 +153,23 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
             return Err(Error::InvalidImage);
         }
         Ok(())
+    }
+
+    /// Compute the hash of the data portion of the image.
+    fn calculate_sha256(&self) -> Result<Hash256> {
+        let mut hasher = Sha256::new();
+        let mut buffer = [0u8; 128];
+        let mut pos = 0;
+        while pos < self.tlv_base {
+            let todo = (self.tlv_base - pos).min(buffer.len());
+            let buf = &mut buffer[0..todo];
+            self.flash.borrow_mut().read(to_u32(pos)?, buf)?;
+            hasher.update(buf);
+            pos += todo;
+        }
+        let mut result = [0u8; 32];
+        result.copy_from_slice(hasher.finalize().as_slice());
+        Ok(result)
     }
 }
 

@@ -9,7 +9,8 @@ documentation = "rust-embedded bootlaoder"
 [dependencies]
 embedded-storage = "0.3.0"
 asraw = { version = "0.1.0", path = "../asraw", default-features = false }
+sha2 = { version = "0.10.8", default-features = false }
 
 [features]
 default = ["std"]
-std = ["asraw/std"]
+std = ["asraw/std", "sha2/std"]
