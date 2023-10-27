@@ -1,0 +1,17 @@
+[package]
+name = "hello-lpc55s69"
+version = "0.1.0"
+edition = "2021"
+description = "Hello world for lpc55s69 board"
+license = "Apache-2.0 or MIT"
+build = "build.rs"
+
+[dependencies]
+cortex-m = "0.7"
+embedded-hal = { version = "0.2", features = ["unproven"] }
+lpc55-hal = { version = "0.3", path = "../../lpc55-hal" }
+cortex-m-rt = "0.6"
+panic-halt = "0.2"
+embedded-time = "0.12.1"
+cortex-m-semihosting = { version = "0.5.0", features = ["jlink-quirks"] }
+panic-semihosting = { version = "0.5.0", features = ["jlink-quirks"] }
