@@ -1,45 +1,30 @@
 //! Boot image support
 
-use core::mem::size_of;
+use core::{mem::size_of, cell::RefCell};
 
 use asraw::{AsRaw, AsMutRaw};
-use embedded_storage::ReadStorage;
+use embedded_storage::nor_flash::{NorFlashError, NorFlashErrorKind, ReadNorFlash};
 
 // TODO: Move the error into a more general place.
-type Result<T, E> = core::result::Result<T, Error<E>>;
+type Result<T> = core::result::Result<T, Error>;
 
-// Errors are constrained by the flash type's error.
-pub enum Error<E> {
-    Flash(E),
+// Use the error kind to avoid this depending on the particular flash.
+#[derive(Debug)]
+pub enum Error {
+    Flash(NorFlashErrorKind),
     InvalidImage,
 }
 
-// TODO: Can I get a From to work for this, so just `?` can be used?
-// Unclear why this doesn't work.
-/*
-fn eget<E>(e: E) -> Error<E> {
-    Error::Flash(e)
+/// Convert the nor flash error into our error type.
+impl<E: NorFlashError> From<E> for Error {
+    fn from(e: E) -> Self {
+        Error::Flash(e.kind())
+    }
 }
-*/
-
-/// Perform some operation that returns a result from a flash device, converting
-/// the error to our local error type.
-macro_rules! flash {
-    ($e:expr) => {
-        $e.map_err(|e| Error::Flash(e))
-    };
-}
-
-/// Convert a flash error.  Doesn't infer very well.
-/*
-fn doflash<F: ReadStorage, T>(r: core::result::Result<T, F::Error>) -> Result<T, F::Error> {
-    r.map_err(|e| Error::Flash(e))
-}
-*/
 
 /// Try to make this image into a u32, returning a locally meaningful result
 /// type.
-fn to_u32<E>(v: usize) -> Result<u32, E> {
+fn to_u32(v: usize) -> Result<u32> {
     v.try_into().map_err(|_| Error::InvalidImage)
 }
 
@@ -49,16 +34,21 @@ pub const IMAGE_MAGIC: u32 = 0x96f3b83d;
 
 /// An image is a bootable image residing in a flash partition.  There is a
 /// header at the beginning, and metadata immediately following the image.
-pub struct Image {
+/// This holds on to a RefCell to the flash to bind the data to a particular flash.
+pub struct Image<'f, F: ReadNorFlash> {
+    flash: &'f RefCell<F>,
     #[allow(dead_code)]
     header: ImageHeader,
+    tlv_base: usize,
 }
 
-impl Image {
-    /// Make an image from flash, if the image is valid.
-    pub fn from_flash<F: ReadStorage>(flash: &mut F) -> Result<Image, F::Error> {
+impl<'f, F: ReadNorFlash> Image<'f, F> {
+    /// Make an image from flash, if the image has a valid header. This does not
+    /// indicate that the image itself is valid, merely that the header
+    /// indicates an image is present.
+    pub fn from_flash(flash: &'f RefCell<F>) -> Result<Image<'f, F>> {
         let mut header =ImageHeader::default();
-        flash!(flash.read(0, header.as_mut_raw()))?;
+        flash.borrow_mut().read(0, header.as_mut_raw())?;
 
         if header.magic != IMAGE_MAGIC {
             return Err(Error::InvalidImage);
@@ -75,33 +65,156 @@ impl Image {
         // Simple case of just a single TLV entry for hash.  TODO: More
         // sophisticated handling should be done separate from here.
         let mut info = TlvInfo::default();
-        flash!(flash.read(to_u32(tlv_base)?, info.as_mut_raw()))?;
+        flash.borrow_mut().read(to_u32(tlv_base)?, info.as_mut_raw())?;
 
         println!("header: {:#x?}", header);
         println!("tlv: {:#x?}", info);
 
-        if info.magic != INFO_MAGIC {
+        if info.magic != TLV_INFO_MAGIC {
             return Err(Error::InvalidImage);
         }
 
         let mut pos = size_of::<TlvEntry>();
         while pos < info.len as usize {
             let mut entry = TlvEntry::default();
-            flash!(flash.read(to_u32(tlv_base + pos)?, entry.as_mut_raw()))?;
+            flash.borrow_mut().read(to_u32(tlv_base + pos)?, entry.as_mut_raw())?;
             println!("entry: {:x?}", entry);
 
             pos += size_of::<TlvEntry>() + entry.len as usize;
         }
 
         Ok(Image {
+            flash,
             header,
+            tlv_base,
         })
+    }
+
+    /// Iterate over the elements of the Tlv.
+    pub fn tlvs<'a>(&'a self) -> Result<TlvIter<'a, 'f, F>> {
+        // Check the header.
+        let mut info = TlvInfo::default();
+        self.flash.borrow_mut().read(to_u32(self.tlv_base)?, info.as_mut_raw())?;
+
+        if info.magic != TLV_INFO_MAGIC {
+            return Err(Error::InvalidImage);
+        }
+
+        Ok(TlvIter {
+            image: self,
+            pos: size_of::<TlvInfo>(),
+            limit: info.len as usize,
+        })
+    }
+
+    /// Validate this image. Check the TLV entries, making sure that they are
+    /// sufficient, and that indicated items, such as hashes and signatures are
+    /// valid.
+    pub fn validate(&self) -> Result<()> {
+        // Things we must see.
+        let mut seen_sha = false;
+
+        for elt in self.tlvs()? {
+            let elt = elt?;
+            println!("TLV: 0x{:x}", elt.kind());
+            match elt.kind() {
+                TLV_SHA256 => {
+                    if seen_sha {
+                        // Only a single hash is allowed.
+                        return Err(Error::InvalidImage);
+                    }
+                    seen_sha = true;
+                    println!("Would verify sha");
+                }
+                kind => {
+                    println!("Unexpected TLV 0x{:x}", kind);
+                    return Err(Error::InvalidImage);
+                }
+            }
+        }
+        if !seen_sha {
+            println!("Expecting SHA TLV");
+            return Err(Error::InvalidImage);
+        }
+        Ok(())
+    }
+}
+
+pub struct TlvIter<'a, 'f, F: ReadNorFlash> {
+    image: &'a Image<'f, F>,
+    pos: usize,
+    limit: usize,
+}
+
+pub struct TlvIterEntry<'f, F: ReadNorFlash> {
+    flash: &'f RefCell<F>,
+    kind: u16,
+    pos: usize,
+    len: usize,
+}
+
+/// Helper like '?' for iterator operations, where errors should return
+/// Some(Err(e)) instead of just the error.  This macro contains a return.
+macro_rules! iter_try {
+    ($e:expr) => {
+        match $e {
+            Ok(r) => r,
+            Err(e) => return Some(Err(e.into())),
+        }
+    };
+}
+
+impl<'a, 'f, F: ReadNorFlash> Iterator for TlvIter<'a, 'f, F> {
+    type Item = Result<TlvIterEntry<'f, F>>;
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.pos >= self.limit {
+            return None;
+        }
+
+        let mut entry = TlvEntry::default();
+        let pos = iter_try!(self.image.tlv_base.checked_add(self.pos).ok_or(Error::InvalidImage));
+        let pos32 = iter_try!(to_u32(pos));
+        iter_try!(self.image.flash.borrow_mut().read(pos32, entry.as_mut_raw()));
+        let data_pos = iter_try!(pos.checked_add(size_of::<TlvEntry>()).ok_or(Error::InvalidImage));
+        self.pos = iter_try!(data_pos.checked_add(entry.len as usize).ok_or(Error::InvalidImage));
+        Some(Ok(TlvIterEntry {
+            flash: self.image.flash,
+            kind: entry.kind,
+            pos: data_pos,
+            len: entry.len as usize,
+        }))
+    }
+}
+
+impl<'f, F: ReadNorFlash> TlvIterEntry<'f, F> {
+    /// What is the kind of this TLV entry.
+    pub fn kind(&self) -> u16 {
+        self.kind
+    }
+
+    /// What is the size of the payload.
+    pub fn data_len(&self) -> usize {
+        self.len
+    }
+
+    /// Read the payload into the given bytes.
+    pub fn read_data(&self, data: &mut [u8]) -> Result<()> {
+        if data.len() != self.len {
+            // TODO: Is something more meaningful here?
+            return Err(Error::InvalidImage);
+        }
+        let pos = to_u32(self.pos)?;
+        self.flash.borrow_mut().read(pos, data)?;
+        Ok(())
     }
 }
 
 #[cfg(test)]
 mod tester {
-    use embedded_storage::ReadStorage;
+    use core::cell::RefCell;
+
+    // use embedded_storage::{ReadStorage, nor_flash::ReadNorFlash};
+    use embedded_storage::nor_flash::{ErrorType, NorFlashError, ReadNorFlash, NorFlashErrorKind};
 
     use super::Image;
 
@@ -109,10 +222,21 @@ mod tester {
 
     struct Simple<'a>(&'a [u8]);
 
+    #[derive(Debug)]
     struct Error;
 
-    impl<'a> ReadStorage for Simple<'a> {
+    impl NorFlashError for Error {
+        fn kind(&self) -> NorFlashErrorKind {
+            NorFlashErrorKind::Other
+        }
+    }
+
+    impl<'a> ErrorType for Simple<'a> {
         type Error = Error;
+    }
+
+    impl<'a> ReadNorFlash for Simple<'a> {
+        const READ_SIZE: usize = 1;
         fn capacity(&self) -> usize { todo!() }
         fn read(&mut self, offset: u32, buf: &mut [u8]) -> Result<(), Error> {
             let offset = offset as usize;
@@ -125,9 +249,10 @@ mod tester {
 
     #[test]
     fn test_load() {
-        let mut flash = Simple(TEST);
+        let flash = RefCell::new(Simple(TEST));
 
-        let _ = Image::from_flash(&mut flash);
+        let image = Image::from_flash(&flash).unwrap();
+        image.validate().unwrap();
         todo!()
     }
 }
@@ -184,7 +309,10 @@ struct TlvInfo {
     len: u16,
 }
 
-const INFO_MAGIC: u16 = 0x6907;
+const TLV_INFO_MAGIC: u16 = 0x6907;
+
+// Supported TLVS
+const TLV_SHA256: u16 = 0x10;
 
 impl AsRaw for TlvInfo {}
 unsafe impl AsMutRaw for TlvInfo {}
