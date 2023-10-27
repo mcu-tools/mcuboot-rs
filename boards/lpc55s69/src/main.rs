@@ -4,11 +4,14 @@
 // extern crate panic_halt;
 extern crate panic_semihosting;
 
+use core::cell::RefCell;
+
 use asraw::{AsRaw, AsMutRaw};
+use boot::{Image, MappedFlash};
 use cortex_m_rt::entry;
 
 use embedded_hal::digital::v2::OutputPin;
-use embedded_storage::ReadStorage;
+use embedded_storage::nor_flash::{ErrorType, NorFlashError, NorFlashErrorKind, ReadNorFlash};
 use hal::{drivers::pins::Level};
 use lpc55_hal as hal;
 // use embedded_time::rate::Extensions;
@@ -45,11 +48,15 @@ fn main() -> ! {
         .into_gpio_pin(&mut iocon, &mut gpio)
         .into_output(Level::High);
 
-    let mut flash = InternalFlash {
+    let flash = InternalFlash {
         base: 0x20000,
         len: 0x20000,
     };
-    chain(&mut flash).unwrap();
+    let flash = RefCell::new(flash);
+
+    let image = Image::from_flash(&flash).unwrap();
+    image.validate().unwrap();
+    chain(&image).unwrap();
 
     loop {
         red.set_low().unwrap();
@@ -69,8 +76,18 @@ pub struct InternalFlash {
 #[derive(Debug)]
 pub struct FlashError;
 
-impl ReadStorage for InternalFlash {
+impl NorFlashError for FlashError {
+    fn kind(&self) -> NorFlashErrorKind {
+        NorFlashErrorKind::Other
+    }
+}
+
+impl ErrorType for InternalFlash {
     type Error = FlashError;
+}
+
+impl ReadNorFlash for InternalFlash {
+    const READ_SIZE: usize = 1;
 
     fn capacity(&self) -> usize {
         self.len
@@ -98,11 +115,6 @@ impl ReadStorage for InternalFlash {
 
         Ok(())
     }
-}
-
-// The boot flash has to be mapped.
-pub trait MappedFlash {
-    fn get_base(&self) -> usize;
 }
 
 impl MappedFlash for InternalFlash {
@@ -134,22 +146,10 @@ impl Into<ImageError> for FlashError {
 // For debugging.
 // TODO: Handle the storage error, converting to a better error.
 #[inline(never)]
-pub fn chain<F: ReadStorage<Error = FlashError> + MappedFlash>(flash: &mut F) -> Result<(), ImageError> {
-    // TODO: use maybeuninit here?
-    let mut header = ImageHeader::default();
-    flash.read(0, header.as_mut_raw())?;
-    hprintln!("Header: {:#x?}", header);
-    if header.magic != IMAGE_MAGIC {
-        hprintln!("Image magic not present.");
-        return Err(ImageError::Invalid);
-    }
+pub fn chain<'f, F: MappedFlash>(image: &Image<'f, F>) -> Result<(), ImageError> {
+    // Chain the next image, assuming the image has been validated.
 
-    // TODO: Verify the header/TLV.
-
-    // Get the base.
-    let base = flash.get_base();
-
-    let reset_base = base + header.hdr_size as usize;
+    let reset_base = image.get_image_base();
     let reset = unsafe {&*(reset_base as *const ResetVector)};
     hprintln!("chain {:x?}", reset);
     unsafe {
@@ -165,8 +165,6 @@ pub fn chain<F: ReadStorage<Error = FlashError> + MappedFlash>(flash: &mut F) ->
 
 // TODO: We don't really want to just read this directly, as it will fault if no
 // image was written here. But, read without faulting is still WIP.
-
-const IMAGE_MAGIC: u32 = 0x96f3b83d;
 
 #[derive(Debug, Default)]
 #[repr(C)]
