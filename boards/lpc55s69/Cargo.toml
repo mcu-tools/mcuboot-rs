@@ -14,9 +14,13 @@ lpc55-hal = { version = "0.3", path = "../../lpc55-hal" }
 cortex-m-rt = "0.6"
 panic-halt = "0.2"
 embedded-time = "0.12.1"
-cortex-m-semihosting = { version = "0.5.0", features = ["jlink-quirks"] }
-panic-semihosting = { version = "0.5.0", features = ["jlink-quirks"] }
+cortex-m-semihosting = { version = "0.5.0", features = ["jlink-quirks"], optional = true }
+panic-semihosting = { version = "0.5.0", features = ["jlink-quirks"], optional = true }
 embedded-storage = "0.3.0"
 
 asraw = { version = "0.1", path = "../../asraw", default-features = false }
 boot = { version = "0.1", path = "../../boot", default-features = false }
+
+[features]
+default = ["semihosting"]
+semihosting = ["dep:cortex-m-semihosting", "dep:panic-semihosting"]

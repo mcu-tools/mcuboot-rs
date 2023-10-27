@@ -1,7 +1,9 @@
 #![no_main]
 #![no_std]
 
-// extern crate panic_halt;
+#[cfg(not(feature = "semihosting"))]
+extern crate panic_halt;
+#[cfg(feature = "semihosting")]
 extern crate panic_semihosting;
 
 use core::cell::RefCell;
@@ -15,7 +17,18 @@ use hal::{drivers::pins::Level};
 use lpc55_hal as hal;
 // use embedded_time::rate::Extensions;
 
+#[cfg(feature = "semihosting")]
 use cortex_m_semihosting::{hprintln};
+
+// If semihosting is not available, just discard printed messages.  It also
+// "uses" the arguments so disabling printing doesn't cause additional warnings.
+#[cfg(not(feature = "semihosting"))]
+macro_rules! hprintln {
+    ($_e:expr) => {{}};
+    ($_e:expr, $($x:expr),+) => {
+        $(let _ = $x;);+
+    };
+}
 
 #[entry]
 fn main() -> ! {
