@@ -1,0 +1,3 @@
+[submodule "lpc55-hal"]
+	path = lpc55-hal
+	url = https://githuyb.com/mcu-tools/lpc55-hal
