@@ -35,7 +35,7 @@ pub const IMAGE_MAGIC: u32 = 0x96f3b83d;
 /// An image is a bootable image residing in a flash partition.  There is a
 /// header at the beginning, and metadata immediately following the image.
 /// This holds on to a RefCell to the flash to bind the data to a particular flash.
-pub struct Image<'f, F: ReadNorFlash> {
+pub struct Image<'f, F> {
     flash: &'f RefCell<F>,
     #[allow(dead_code)]
     header: ImageHeader,
@@ -140,13 +140,13 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
     }
 }
 
-pub struct TlvIter<'a, 'f, F: ReadNorFlash> {
+pub struct TlvIter<'a, 'f, F> {
     image: &'a Image<'f, F>,
     pos: usize,
     limit: usize,
 }
 
-pub struct TlvIterEntry<'f, F: ReadNorFlash> {
+pub struct TlvIterEntry<'f, F> {
     flash: &'f RefCell<F>,
     kind: u16,
     pos: usize,
