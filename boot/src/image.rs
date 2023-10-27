@@ -6,6 +6,8 @@ use asraw::{AsMutRaw, AsRaw};
 use embedded_storage::nor_flash::{NorFlashError, NorFlashErrorKind, ReadNorFlash};
 use sha2::{Digest, Sha256};
 
+use crate::MappedFlash;
+
 // TODO: Move the error into a more general place.
 type Result<T> = core::result::Result<T, Error>;
 
@@ -21,6 +23,13 @@ impl<E: NorFlashError> From<E> for Error {
     fn from(e: E) -> Self {
         Error::Flash(e.kind())
     }
+}
+
+/// To make development a little easier, allow println in the 'std' code, and
+/// just make it vanish when we are no_std.
+#[cfg(not(feature = "std"))]
+macro_rules! println {
+    ($($_e:expr),+) => { {} };
 }
 
 /// Try to make this image into a u32, returning a locally meaningful result
@@ -143,6 +152,8 @@ impl<'f, F: ReadNorFlash> Image<'f, F> {
                     }
                 }
                 kind => {
+                    // Allow to be unused for embedded.
+                    let _ = kind;
                     println!("Unexpected TLV 0x{:x}", kind);
                     return Err(Error::InvalidImage);
                 }
@@ -251,6 +262,13 @@ impl<'f, F: ReadNorFlash> TlvIterEntry<'f, F> {
         let pos = to_u32(self.pos)?;
         self.flash.borrow_mut().read(pos, data)?;
         Ok(())
+    }
+}
+
+/// For mapped flash, we can get the base address of the XIP area.
+impl<'f, F: MappedFlash> Image<'f, F> {
+    pub fn get_image_base(&self) -> usize {
+        self.flash.borrow().get_base() + self.header.hdr_size as usize
     }
 }
 
