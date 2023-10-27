@@ -6,7 +6,6 @@ extern crate panic_semihosting;
 
 use core::cell::RefCell;
 
-use asraw::{AsRaw, AsMutRaw};
 use boot::{Image, MappedFlash};
 use cortex_m_rt::entry;
 
@@ -165,48 +164,6 @@ pub fn chain<'f, F: MappedFlash>(image: &Image<'f, F>) -> Result<(), ImageError>
 
 // TODO: We don't really want to just read this directly, as it will fault if no
 // image was written here. But, read without faulting is still WIP.
-
-#[derive(Debug, Default)]
-#[repr(C)]
-struct ImageVersion {
-    major: u8,
-    minor: u8,
-    revision: u16,
-    build_num: u32,
-}
-
-#[derive(Debug, Default)]
-#[repr(C)]
-struct ImageHeader {
-    magic: u32,
-    load_addr: u32,
-    hdr_size: u16,
-    protect_tlv_size: u16,
-    img_size: u32,
-    flags: u32,
-    version: ImageVersion,
-    pad1: u32,
-}
-
-impl AsRaw for ImageHeader {}
-unsafe impl AsMutRaw for ImageHeader {}
-
-/// Header in front of the tlv section.
-#[allow(unused)]
-#[repr(C)]
-struct TlvInfo {
-    magic: u16,
-    // size of TLV area (inclusing this header).
-    tlv_tot: u16,
-}
-
-/// In front of a single TLV entry.
-#[allow(unused)]
-#[repr(C)]
-struct Tlv {
-    kind: u16,
-    len: u16,
-}
 
 /// The Cortex-M reset vector, sits at the start of the vector table.
 #[derive(Debug)]
