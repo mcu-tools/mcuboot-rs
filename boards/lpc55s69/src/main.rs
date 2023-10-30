@@ -9,12 +9,11 @@ extern crate panic_semihosting;
 use core::cell::RefCell;
 
 use boot::{Image, MappedFlash};
-use byteorder::{ByteOrder, LittleEndian};
 use cortex_m_rt::entry;
 
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
 use embedded_storage::nor_flash::{ErrorType, NorFlashError, NorFlashErrorKind, ReadNorFlash};
-use hal::{drivers::{pins::Level, Timer, timer::Elapsed}, raw::FLASH, peripherals::ctimer::Ctimer, Enabled};
+use hal::{drivers::{pins::Level, Timer, timer::Elapsed}, peripherals::ctimer::Ctimer, Enabled};
 use lpc55_hal as hal;
 use embedded_time::rate::Extensions;
 use embedded_time::duration::Extensions as DurationExtensions;
@@ -46,9 +45,10 @@ fn main() -> ! {
     let mut syscon = hal.syscon;
     let mut gpio = hal.gpio.enabled(&mut syscon);
     let mut iocon = hal.iocon.enabled(&mut syscon);
-    let mut scb = hal.SCB;
-    let mut cpuid = hal.CPUID;
+    // let mut scb = hal.SCB;
+    // let mut cpuid = hal.CPUID;
 
+    /*
     scb.enable_icache();
     scb.enable_dcache(&mut cpuid);
 
@@ -58,6 +58,7 @@ fn main() -> ! {
     hprintln!("Check 0 {:?}", read_check(&flash, 0));
     hprintln!("Check 20000 {:?}", read_check(&flash, 0x20000));
     hprintln!("Check 40000 {:?}", read_check(&flash, 0x40000));
+    */
 
     /*
     let st = flash.int_status.read();
@@ -88,6 +89,7 @@ fn main() -> ! {
         .enabled(&mut syscon, clocks.support_1mhz_fro_token().unwrap());
     let mut cdriver = Timer::new(ctimer);
 
+    /*
     for addr in [0, 0x20000, 0x40000] {
         let (ok, elapsed) = measure(&mut cdriver, || {
             (0..1000).map(|_| read_check(&flash, addr)).last().unwrap()
@@ -143,20 +145,28 @@ fn main() -> ! {
     hprintln!("Check 20000 {:?}", read_check(&flash, 0x20000));
     hprintln!("Check 40000 {:?}", read_check(&flash, 0x40000));
     */
+    */
 
     let mut red = pins
         .pio1_6
         .into_gpio_pin(&mut iocon, &mut gpio)
         .into_output(Level::High);
 
+    let flash = hal.flash.release();
+    let flash = flash::LpcFlash::new(flash);
+    let slot0 = flash.partition(0x20000, 0x20000).unwrap();
+
+    /*
     let flash = InternalFlash {
         base: 0x20000,
         len: 0x20000,
     };
-    let flash = RefCell::new(flash);
+    */
+    let slot0 = RefCell::new(slot0);
 
-    let image = Image::from_flash(&flash).unwrap();
-    image.validate().unwrap();
+    let image = Image::from_flash(&slot0).unwrap();
+    let ((), elapsed) = measure(&mut cdriver, || image.validate().unwrap());
+    hprintln!("validate: {}us", elapsed);
     chain(&image).unwrap();
 
     loop {
@@ -175,6 +185,7 @@ fn measure<T, TT: Ctimer<Enabled>, F: FnOnce() -> T>(timer: &mut Timer<TT>, acti
     (result, after - before)
 }
 
+/*
 // Try putting some code into RAM, and see if we can execute it there. In this
 // case, we want to try accessing hardware.
 #[inline(never)]
@@ -186,7 +197,9 @@ fn wait_done(flash: &FLASH) -> u32 {
     flash.int_clr_status.write(|w| w.done().set_bit().err().set_bit().fail().set_bit().ecc_err().set_bit());
     bits
 }
+*/
 
+/*
 /// Determine if a page has been programmed. If this returns true, it is likely
 /// that reads from that page will not result in bus faults.
 #[inline(never)]
@@ -211,7 +224,9 @@ fn read_check(flash: &FLASH, addr: u32) -> bool {
 
     good
 }
+*/
 
+/*
 /// Erase a range.
 fn erase(flash: &FLASH, base: u32, length: u32) -> bool {
     flash.int_clr_status.write(|w| w.done().set_bit().err().set_bit().fail().set_bit().ecc_err().set_bit());
@@ -231,7 +246,9 @@ fn erase(flash: &FLASH, base: u32, length: u32) -> bool {
 
     good
 }
+*/
 
+/*
 /// Program a single page.
 fn program_page(flash: &FLASH, base: u32, page: &[u8]) -> bool {
     flash.int_clr_status.write(|w| w.done().set_bit().err().set_bit().fail().set_bit().ecc_err().set_bit());
@@ -261,6 +278,7 @@ fn program_page(flash: &FLASH, base: u32, page: &[u8]) -> bool {
     let good = flash.int_status.read().fail().bit_is_clear();
     good
 }
+*/
 
 /// Represents a memory-mapped simple flash partition.  This has no error
 /// recovery.
