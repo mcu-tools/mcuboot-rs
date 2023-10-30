@@ -24,4 +24,4 @@ restore ../../hello/lpc55s69/signed.bin binary 0x20000
 # b main
 # b lpc55_hal::drivers::clocks::ClockRequirements::configure
 
-continue
+# continue
