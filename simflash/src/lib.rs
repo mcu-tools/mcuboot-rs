@@ -24,7 +24,9 @@
 //!   larger than thye others, but the smaller erases allow us to treat the device
 //!   more like blocks.
 
-use embedded_storage::nor_flash::{ReadNorFlash, ErrorType, NorFlashError, NorFlashErrorKind, NorFlash, self};
+use embedded_storage::nor_flash::{
+    self, ErrorType, NorFlash, NorFlashError, NorFlashErrorKind, ReadNorFlash,
+};
 
 /// The richer error type used in the simulator.
 #[derive(Debug, Clone, Copy)]
@@ -40,13 +42,13 @@ impl From<NorFlashErrorKind> for SimError {
 
 type Result<T> = core::result::Result<T, SimError>;
 
-struct SimFlash<const WRITE_SIZE: usize, const ERASE_SIZE: usize> {
-}
+struct SimFlash<const WRITE_SIZE: usize, const ERASE_SIZE: usize> {}
 
-impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> SimFlash<WRITE_SIZE, ERASE_SIZE> {
-}
+impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> SimFlash<WRITE_SIZE, ERASE_SIZE> {}
 
-impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> ErrorType for SimFlash<WRITE_SIZE, ERASE_SIZE> {
+impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> ErrorType
+    for SimFlash<WRITE_SIZE, ERASE_SIZE>
+{
     type Error = SimError;
 }
 
@@ -59,7 +61,9 @@ impl NorFlashError for SimError {
     }
 }
 
-impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> ReadNorFlash for SimFlash<WRITE_SIZE, ERASE_SIZE> {
+impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> ReadNorFlash
+    for SimFlash<WRITE_SIZE, ERASE_SIZE>
+{
     const READ_SIZE: usize = 1;
     fn capacity(&self) -> usize {
         todo!()
@@ -70,7 +74,9 @@ impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> ReadNorFlash for SimFlash
     }
 }
 
-impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> NorFlash for SimFlash<WRITE_SIZE, ERASE_SIZE> {
+impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> NorFlash
+    for SimFlash<WRITE_SIZE, ERASE_SIZE>
+{
     const WRITE_SIZE: usize = WRITE_SIZE;
     const ERASE_SIZE: usize = ERASE_SIZE;
     fn erase(&mut self, from: u32, to: u32) -> Result<()> {
