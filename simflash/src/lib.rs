@@ -87,6 +87,34 @@ impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> SimFlash<WRITE_SIZE, ERAS
     fn pages(&self, from: usize, to: usize) -> Range<usize> {
         self.page_of(from) .. self.page_of(to - 1) + 1
     }
+
+    /// Install a given image into the flash at the given offset.  For now, the
+    /// offset must be aligned.
+    pub fn install(&mut self, bytes: &[u8], offset: u32) -> Result<()> {
+        // Set this to past the device, so that we will always try erasing.
+        assert_eq!(offset as usize % ERASE_SIZE, 0);
+
+        let mut last_erased = self.page_state.len() / Self::PAGES_PER_SECTOR;
+        let mut pos = 0;
+        let mut buf = [0u8; WRITE_SIZE];
+        while pos < bytes.len() {
+            let dev_pos = pos + offset as usize;
+            let dev_sector = dev_pos / ERASE_SIZE;
+            if dev_sector != last_erased {
+                self.erase((dev_sector * ERASE_SIZE) as u32,
+                           (dev_sector * ERASE_SIZE + 1)as u32)?;
+                last_erased = dev_sector;
+            }
+
+            let len = WRITE_SIZE.min(bytes.len() - pos);
+            buf.fill(0xff);
+            buf[..len].copy_from_slice(&bytes[pos .. pos + len]);
+            self.write(dev_pos as u32, &buf)?;
+
+            pos += WRITE_SIZE;
+        }
+        Ok(())
+    }
 }
 
 impl<const WRITE_SIZE: usize, const ERASE_SIZE: usize> ErrorType
