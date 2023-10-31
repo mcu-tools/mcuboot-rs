@@ -4,6 +4,7 @@
 
 // TODO: Do we want to use errors?
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum Error {
     NotAligned,
     OutOfBounds,
@@ -11,7 +12,7 @@ pub enum Error {
     NotErased,
 }
 
-type Result<T> = core::result::Result<T, Error>;
+pub type Result<T> = core::result::Result<T, Error>;
 
 /// Read only interface into flash.
 pub trait ReadFlash {
