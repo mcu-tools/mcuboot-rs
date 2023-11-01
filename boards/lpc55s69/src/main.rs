@@ -12,7 +12,6 @@ use boot::{Image, MappedFlash};
 use cortex_m_rt::entry;
 
 use embedded_hal::{digital::v2::OutputPin, timer::CountDown};
-use embedded_storage::nor_flash::{ErrorType, NorFlashError, NorFlashErrorKind, ReadNorFlash};
 use hal::{drivers::{pins::Level, Timer, timer::Elapsed}, peripherals::ctimer::Ctimer, Enabled};
 use lpc55_hal as hal;
 use embedded_time::rate::Extensions;
@@ -156,12 +155,6 @@ fn main() -> ! {
     let flash = flash::LpcFlash::new(flash);
     let slot0 = flash.partition(0x20000, 0x20000).unwrap();
 
-    /*
-    let flash = InternalFlash {
-        base: 0x20000,
-        len: 0x20000,
-    };
-    */
     let slot0 = RefCell::new(slot0);
 
     let image = Image::from_flash(&slot0).unwrap();
@@ -280,87 +273,10 @@ fn program_page(flash: &FLASH, base: u32, page: &[u8]) -> bool {
 }
 */
 
-/// Represents a memory-mapped simple flash partition.  This has no error
-/// recovery.
-pub struct InternalFlash {
-    base: usize,
-    len: usize,
-}
-
-#[derive(Debug)]
-pub struct FlashError;
-
-impl NorFlashError for FlashError {
-    fn kind(&self) -> NorFlashErrorKind {
-        NorFlashErrorKind::Other
-    }
-}
-
-impl ErrorType for InternalFlash {
-    type Error = FlashError;
-}
-
-impl ReadNorFlash for InternalFlash {
-    const READ_SIZE: usize = 1;
-
-    fn capacity(&self) -> usize {
-        self.len
-    }
-
-    fn read(&mut self, offset: u32, bytes: &mut [u8]) -> core::result::Result<(), FlashError> {
-        let total = if let Some(t) = (offset as usize).checked_add(bytes.len()) {
-            t
-        } else {
-            return Err(FlashError);
-        };
-        if total > self.len {
-            return Err(FlashError);
-        }
-
-        // As long as the region we have is valid, there should be no overflow
-        // checks.
-        let base = self.base + offset as usize;
-
-        let memory = unsafe {
-            core::slice::from_raw_parts(base as *const u8, bytes.len())
-        };
-
-        bytes.copy_from_slice(memory);
-
-        Ok(())
-    }
-}
-
-impl MappedFlash for InternalFlash {
-    fn get_base(&self) -> usize {
-       self.base
-    }
-}
-
-// Errors with image handling
-#[derive(Debug)]
-pub enum ImageError {
-    Flash,
-    Invalid,
-}
-
-impl From<FlashError> for ImageError {
-    fn from(_value: FlashError) -> Self {
-        ImageError::Flash
-    }
-}
-/*
-impl Into<ImageError> for FlashError {
-    fn into(self) -> ImageError {
-        ImageError::Flash
-    }
-}
-*/
-
 // For debugging.
 // TODO: Handle the storage error, converting to a better error.
 #[inline(never)]
-pub fn chain<'f, F: MappedFlash>(image: &Image<'f, F>) -> Result<(), ImageError> {
+pub fn chain<'f, F: MappedFlash>(image: &Image<'f, F>) -> Result<(), flash::Error> {
     // Chain the next image, assuming the image has been validated.
 
     let reset_base = image.get_image_base();
