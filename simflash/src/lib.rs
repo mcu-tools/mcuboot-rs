@@ -58,7 +58,7 @@ impl SimFlash {
     /// given number of pages.
     pub fn new(read_size: usize, write_size: usize, erase_size: usize, sectors: usize) -> Result<Self> {
         // TODO: Ideally, these would be checked at compile time.
-        assert!(write_size < erase_size);
+        assert!(write_size <= erase_size);
         assert!(erase_size % write_size == 0);
 
         let pages_per_sector = erase_size / write_size;
