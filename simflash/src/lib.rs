@@ -26,6 +26,8 @@
 
 use std::ops::Range;
 
+pub mod styles;
+
 use storage::{
     Error, Flash, ReadFlash, Result,
 };
