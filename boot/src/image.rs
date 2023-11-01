@@ -76,20 +76,24 @@ impl<'f, F: ReadFlash> Image<'f, F> {
             .borrow_mut()
             .read(tlv_base, info.as_mut_raw())?;
 
-        println!("header: {:#x?}", header);
-        println!("tlv: {:#x?}", info);
+        // println!("header: {:#x?}", header);
+        // println!("tlv: {:#x?}", info);
 
         if info.magic != TLV_INFO_MAGIC {
             return Err(Error::InvalidImage);
         }
+        // TODO: If we support the protected TLV, the size computation will have
+        // to change.
+        let tlv_size = info.len as usize;
 
+        // TODO: This can be done just with validate.
         let mut pos = size_of::<TlvEntry>();
         while pos < info.len as usize {
             let mut entry = TlvEntry::default();
             flash
                 .borrow_mut()
                 .read(tlv_base + pos, entry.as_mut_raw())?;
-            println!("entry: {:x?}", entry);
+            // println!("entry: {:x?}", entry);
 
             pos += size_of::<TlvEntry>() + entry.len as usize;
         }
@@ -129,7 +133,7 @@ impl<'f, F: ReadFlash> Image<'f, F> {
 
         for elt in self.tlvs()? {
             let elt = elt?;
-            println!("TLV: 0x{:x}", elt.kind());
+            // println!("TLV: 0x{:x}", elt.kind());
             match elt.kind() {
                 TLV_SHA256 => {
                     if seen_sha {
