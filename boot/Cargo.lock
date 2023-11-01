@@ -21,6 +21,7 @@ version = "0.1.0"
 dependencies = [
  "asraw",
  "sha2",
+ "simflash",
  "storage",
 ]
 
@@ -84,6 +85,13 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "simflash"
+version = "0.1.0"
+dependencies = [
+ "storage",
 ]
 
 [[package]]

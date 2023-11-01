@@ -264,44 +264,6 @@ impl<'f, F: MappedFlash> Image<'f, F> {
     }
 }
 
-#[cfg(test)]
-mod tester {
-    use core::cell::RefCell;
-
-    use storage::{Error, ReadFlash};
-
-    use super::Image;
-
-    const TEST: &[u8] = include_bytes!("../data/sample-signed.bin");
-
-    struct Simple<'a>(&'a [u8]);
-
-    impl<'a> ReadFlash for Simple<'a> {
-        fn read_size(&self) -> usize {
-            1
-        }
-
-        fn capacity(&self) -> usize {
-            todo!()
-        }
-
-        fn read(&mut self, offset: usize, buf: &mut [u8]) -> Result<(), Error> {
-            // Let bound checking catch the errors in the test.
-            buf.copy_from_slice(&self.0[offset..offset + buf.len()]);
-            Ok(())
-        }
-    }
-
-    #[test]
-    fn test_load() {
-        let flash = RefCell::new(Simple(TEST));
-
-        let image = Image::from_flash(&flash).unwrap();
-        image.validate().unwrap();
-        todo!()
-    }
-}
-
 /// The image begins with the following header.  This is intended to be
 /// interpreted as a C struct.
 #[derive(Debug, Default)]
