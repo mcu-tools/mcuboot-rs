@@ -93,7 +93,7 @@ impl SimFlash {
             let dev_sector = dev_pos / self.erase_size;
             if dev_sector != last_erased {
                 self.erase(dev_sector * self.erase_size,
-                           dev_sector * self.erase_size + 1)?;
+                           (dev_sector + 1) * self.erase_size)?;
                 last_erased = dev_sector;
             }
 
