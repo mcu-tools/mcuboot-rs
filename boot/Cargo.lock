@@ -20,8 +20,8 @@ name = "boot"
 version = "0.1.0"
 dependencies = [
  "asraw",
- "embedded-storage",
  "sha2",
+ "storage",
 ]
 
 [[package]]
@@ -60,12 +60,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "embedded-storage"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "156d7a2fdd98ebbf9ae579cbceca3058cff946e13f8e17b90e3511db0508c723"
-
-[[package]]
 name = "generic-array"
 version = "0.14.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -91,6 +85,10 @@ dependencies = [
  "cpufeatures",
  "digest",
 ]
+
+[[package]]
+name = "storage"
+version = "0.1.0"
 
 [[package]]
 name = "typenum"
