@@ -6,24 +6,7 @@ use asraw::{AsMutRaw, AsRaw};
 use storage::ReadFlash;
 use sha2::{Digest, Sha256};
 
-use crate::MappedFlash;
-
-// TODO: Move the error into a more general place.
-type Result<T> = core::result::Result<T, Error>;
-
-// Use the error kind to avoid this depending on the particular flash.
-#[derive(Debug)]
-pub enum Error {
-    Flash(storage::Error),
-    InvalidImage,
-}
-
-/// Convert the nor flash error into our error type.
-impl From<storage::Error> for Error {
-    fn from(e: storage::Error) -> Self {
-        Error::Flash(e)
-    }
-}
+use crate::{MappedFlash, Error, Result};
 
 /// To make development a little easier, allow println in the 'std' code, and
 /// just make it vanish when we are no_std.
@@ -45,8 +28,9 @@ type Hash256 = [u8; 32];
 pub struct Image<'f, F> {
     flash: &'f RefCell<F>,
     #[allow(dead_code)]
-    header: ImageHeader,
+    pub header: ImageHeader,
     tlv_base: usize,
+    tlv_size: usize,
 }
 
 impl<'f, F: ReadFlash> Image<'f, F> {
@@ -102,6 +86,7 @@ impl<'f, F: ReadFlash> Image<'f, F> {
             flash,
             header,
             tlv_base,
+            tlv_size,
         })
     }
 
@@ -179,6 +164,13 @@ impl<'f, F: ReadFlash> Image<'f, F> {
         let mut result = [0u8; 32];
         result.copy_from_slice(hasher.finalize().as_slice());
         Ok(result)
+    }
+}
+
+impl<'a, F> Image<'a, F> {
+    /// Return the size, in bytes, of the entire image, including the TLV.
+    pub fn full_image_size(&self) -> usize {
+        self.tlv_base + self.tlv_size
     }
 }
 
@@ -272,7 +264,7 @@ impl<'f, F: MappedFlash> Image<'f, F> {
 /// interpreted as a C struct.
 #[derive(Debug, Default)]
 #[repr(C)]
-struct ImageHeader {
+pub struct ImageHeader {
     /// Magic number, indicates this particular header.
     magic: u32,
     /// The address to load this image.  Only used for non-XIP.  It seems to be
