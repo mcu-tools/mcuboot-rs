@@ -22,7 +22,8 @@ use lpc55_hal as hal;
 
 pub use storage::Error;
 
-#[cfg(feature = "semihosting")]
+// use crate::hprintln;
+
 type Result<T> = core::result::Result<T, Error>;
 
 pub struct LpcFlash {

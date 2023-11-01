@@ -10,3 +10,7 @@ jlink:
 
 semi:
 	socat - TCP4:localhost:2333
+
+rtt:
+	socat - TCP4:localhost:19021 | \
+		defmt-print -e target/thumbv8m.main-none-eabi/debug/mcuboot-lpc55s69

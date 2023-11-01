@@ -1,10 +1,15 @@
 #![no_main]
 #![no_std]
 
-#[cfg(not(feature = "semihosting"))]
+#[cfg(not(any(feature = "semihosting",feature = "rtt")))]
 extern crate panic_halt;
 #[cfg(feature = "semihosting")]
 extern crate panic_semihosting;
+#[cfg(feature = "rtt")]
+use panic_probe as _;
+
+#[cfg(feature = "rtt")]
+use defmt_rtt as _;
 
 use core::cell::RefCell;
 
@@ -17,21 +22,43 @@ use lpc55_hal as hal;
 use embedded_time::rate::Extensions;
 use embedded_time::duration::Extensions as DurationExtensions;
 use embedded_time::duration::Microseconds;
+use embedded_time::fixed_point::FixedPoint;
 
 #[cfg(feature = "semihosting")]
-use cortex_m_semihosting::{hprintln};
+mod logging {
+    pub use cortex_m_semihosting::{hprintln};
+}
 
 mod flash;
 
+// Use 'info' if we are using defmt.
+#[cfg(feature = "rtt")]
+mod logging {
+    macro_rules! hprintln {
+        ($e:expr) => {
+            defmt::error!($e);
+        };
+        ($e:expr, $($args:expr),+) => {
+            defmt::error!($e, $($args),+);
+        };
+    }
+    pub(crate) use hprintln;
+}
+
 // If semihosting is not available, just discard printed messages.  It also
 // "uses" the arguments so disabling printing doesn't cause additional warnings.
-#[cfg(not(feature = "semihosting"))]
-macro_rules! hprintln {
-    ($_e:expr) => {{}};
-    ($_e:expr, $($x:expr),+) => {
-        $(let _ = $x;);+
-    };
+#[cfg(not(any(feature = "semihosting",feature = "rtt")))]
+mod logging {
+    macro_rules! hprintln {
+        ($_e:expr) => {{}};
+        ($_e:expr, $($x:expr),+) => {
+            $(let _ = $x;);+
+        };
+    }
+    pub(crate) use hprintln;
 }
+
+pub(crate) use logging::hprintln;
 
 #[entry]
 fn main() -> ! {
@@ -159,7 +186,7 @@ fn main() -> ! {
 
     let image = Image::from_flash(&slot0).unwrap();
     let ((), elapsed) = measure(&mut cdriver, || image.validate().unwrap());
-    hprintln!("validate: {}us", elapsed);
+    hprintln!("validate: {}us", elapsed.integer());
     chain(&image).unwrap();
 
     loop {
@@ -280,8 +307,8 @@ pub fn chain<'f, F: MappedFlash>(image: &Image<'f, F>) -> Result<(), flash::Erro
     // Chain the next image, assuming the image has been validated.
 
     let reset_base = image.get_image_base();
-    let reset = unsafe {&*(reset_base as *const ResetVector)};
-    hprintln!("chain {:x?}", reset);
+    // let reset = unsafe {&*(reset_base as *const ResetVector)};
+    // hprintln!("chain {}", reset);
     unsafe {
         #[allow(unused_mut)]
         let mut p = cortex_m::Peripherals::steal();

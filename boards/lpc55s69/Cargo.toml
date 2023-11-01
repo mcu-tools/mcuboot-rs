@@ -10,14 +10,20 @@ build = "build.rs"
 version = "1.5.0"
 default-features = false
 
+# Ask for the critical section implementation from cortex-m. This is only valid
+# with a single CPU running.
+[dependencies.cortex-m]
+version = "0.7"
+features = ["critical-section-single-core"]
+
 [dependencies]
-cortex-m = "0.7"
+cortex-m-rt = "0.6"
 embedded-hal = { version = "0.2", features = ["unproven"] }
 lpc55-hal = { version = "0.3", path = "../../lpc55-hal" }
 # lpc55-hal = "0.3"
-cortex-m-rt = "0.6"
 panic-halt = "0.2"
 embedded-time = "0.12.1"
+
 cortex-m-semihosting = { version = "0.5.0", features = ["jlink-quirks"], optional = true }
 panic-semihosting = { version = "0.5.0", features = ["jlink-quirks"], optional = true }
 
@@ -25,6 +31,12 @@ asraw = { version = "0.1", path = "../../asraw", default-features = false }
 boot = { version = "0.1", path = "../../boot", default-features = false }
 storage = { version = "0.1.0", path = "../../storage", default-features = false }
 
+# RTT Features
+defmt = { version = "0.3", optional = true }
+defmt-rtt = { version = "0.4", optional = true }
+panic-probe = { version = "0.3", optional = true, features = ["print-defmt"] }
+
 [features]
 default = ["semihosting"]
 semihosting = ["dep:cortex-m-semihosting", "dep:panic-semihosting"]
+rtt = ["dep:defmt", "dep:defmt-rtt", "dep:panic-probe"]
