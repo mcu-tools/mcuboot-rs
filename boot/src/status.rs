@@ -107,6 +107,7 @@
 use core::mem::size_of;
 
 use crate::Result;
+use asraw::{AsRaw, AsMutRaw};
 use storage::Flash;
 
 mod sizes {
@@ -288,7 +289,23 @@ pub struct StatusLayout {
     pub hash_pages: sizes::HashVec<usize>,
 }
 
+impl StatusLayout {
+    pub fn read<F: Flash>(&self, flash: &mut F) -> Result<()> {
+        // Calculate the address of the last page.
+        let last_page = ((flash.capacity() / flash.erase_size()) - 1) * flash.erase_size();
+
+        println!("Last page: {:x}", last_page);
+        let last_tail_pos = last_page + self.tail_pos;
+
+        let mut last_tail = StatusTail::default();
+        flash.read(last_tail_pos, last_tail.as_mut_raw())?;
+
+        Ok(())
+    }
+}
+
 /// The status tail.  This data is placed at the very end of the slot.
+#[derive(Debug, Default)]
 #[repr(C)]
 struct StatusTail {
     /// The encryption key, used if we are encrypting in/out of slot0.
@@ -312,6 +329,9 @@ struct StatusTail {
     /// The magic number.  This should land at the end of the image.
     magic: [u8; 16],
 }
+
+impl AsRaw for StatusTail {}
+unsafe impl AsMutRaw for StatusTail {}
 
 /*
 #[repr(u8)]

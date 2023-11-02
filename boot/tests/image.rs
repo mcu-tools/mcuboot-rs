@@ -45,10 +45,16 @@ fn image_test() {
         let upgrade_info = SlotInfo::from_data(upgrade_size, &*upgrade.borrow());
         println!("uinfo: {:x?}", upgrade_info);
         // println!("info: {:#x?}", info);
-        let sminfo = info.status_layout(&upgrade_info);
+        let sminfo = info.status_layout(&upgrade_info).unwrap();
         println!("main status: {:#x?}", sminfo);
-        let suinfo = upgrade_info.status_layout(&info);
+        let suinfo = upgrade_info.status_layout(&info).unwrap();
         println!("upgrade status: {:#x?}", suinfo);
+
+        // Read the status area from each partition.
+        let smstate = sminfo.read(&mut *main.borrow_mut());
+        println!("smstate: {:#x?}", smstate);
+        let sustate = suinfo.read(&mut *upgrade.borrow_mut());
+        println!("sustate: {:#x?}", sustate);
     }
     todo!();
 }
