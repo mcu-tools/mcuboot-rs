@@ -11,6 +11,15 @@ path = "../storage"
 default-features = false
 
 [dependencies]
+anyhow = "1.0.75"
+rand = "0.8.5"
+rand_xoshiro = "0.6.0"
+temp-dir = "0.1.11"
+
+[dev-dependencies.boot]
+version = "0.1.0"
+path = "../boot"
+features = ["std"]
 
 [features]
 default = ["std"]

@@ -4,15 +4,24 @@ use std::cell::RefCell;
 
 use boot::{Image, SlotInfo};
 
-static IMG1: &[u8] = include_bytes!("../data/sample-signed.bin");
-
 #[test]
 fn image_test() {
     for flashes in simflash::styles::all_flashes() {
         let (mut main, mut upgrade) = flashes.unwrap();
 
-        main.install(IMG1, 0).unwrap();
-        upgrade.install(IMG1, 0).unwrap();
+        let img1 = simflash::gen::GenBuilder::default()
+            .size(71842)
+            .seed(1)
+            .build()
+            .unwrap();
+        let img2 = simflash::gen::GenBuilder::default()
+            .size(76173)
+            .seed(2)
+            .build()
+            .unwrap();
+
+        main.install(&img1.data, 0).unwrap();
+        upgrade.install(&img2.data, 0).unwrap();
 
         let main = RefCell::new(main);
         let upgrade = RefCell::new(upgrade);
