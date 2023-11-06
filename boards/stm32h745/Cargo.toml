@@ -1,0 +1,71 @@
+[package]
+name = "stm32h7-boot"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[package.metadata.docs.rs]
+features = []
+targets = [ "thumbv7em-none-eabihf" ]
+
+
+# - workspace -----------------------------------------------------------------
+
+# TODO Workspace feature is blocked: https://github.com/rust-lang/cargo/issues/7004
+#[workspace]
+#members = [
+#    "testsuite"
+#]
+
+
+# - features ------------------------------------------------------------------
+
+[features]
+
+default = ["rtt"]
+
+# Enable RTT debugging.
+rtt = ["dep:defmt", "dep:defmt-rtt", "dep:panic-probe"]
+
+# - dependencies --------------------------------------------------------------
+
+[dependencies]
+cortex-m = { version = "0.7.6", features = ["critical-section-single-core"] }
+cortex-m-rt = { version = "0.7.1" }
+fugit = "0.3.7"
+# nucleo-h7xx = "0.2.1"
+stm32h7xx-hal = { version = "0.15.0", features = [ "stm32h747cm7" ] }
+panic-semihosting = { version = "0.6.0" }
+
+# embedded-timeout-macros = "0.3.0"
+# heapless = "0.7.16"
+# nb = "1.0.0"
+# void = { version = "1.0.2", default-features = false }
+
+defmt = { version = "0.3", optional = true }
+defmt-rtt = { version = "0.4", optional = true }
+panic-probe = { version = "0.3", features = ["print-defmt"], optional = true }
+embedded-storage = "0.3.0"
+
+# - dev dependencies ----------------------------------------------------------
+
+[dev-dependencies]
+panic-halt = "0.2.0"
+panic-itm = { version = "0.4.2" }
+panic-rtt-target = { version = "0.1.1", features = [ "cortex-m" ] }
+panic-semihosting = { version = "0.6.0" }
+rtt-target = { version = "0.3.1", features = [ "cortex-m" ] }
+
+# - profiles ------------------------------------------------------------------
+
+[profile.dev]
+
+[profile.release]
+debug = true
+
+
+# - examples ------------------------------------------------------------------
+
+[[example]]
+name = "hello"
+required-features = []

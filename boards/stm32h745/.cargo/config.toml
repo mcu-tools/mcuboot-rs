@@ -1,0 +1,12 @@
+[target.thumbv7em-none-eabihf]
+runner = "arm-none-eabi-gdb -q -x jlink.gdb"
+rustflags = [
+    "-C", "link-arg=-Tdefmt.x",
+    "-C", "link-arg=-Tlink.x",
+]
+
+[build]
+target = "thumbv7em-none-eabihf" # Cortex-M4F and Cortex-M7F (with FPU)
+
+[env]
+DEFMT_LOG = "debug"
